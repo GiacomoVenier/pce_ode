@@ -454,7 +454,7 @@ def Plot_of_coefficients(N, mu, sigma, solutions):
         ax.set_ylabel(rf"$c_{k}$")
         ax.grid(True)
         ax.set_xlim([min(mu), max(mu)])
-        fig.savefig(f"Plots/Plot_of_coefficient_N={N}_c_{k}.pdf",bbox_inches='tight')
+        fig.savefig(f"plots/Plot_of_coefficient_N={N}_c_{k}.pdf",bbox_inches='tight')
     
     return
 
@@ -594,12 +594,12 @@ def Plot_polynomials(polynomials, N_PC, mu, sigma, Bif, save=False, ls=False):
     ax.set_ylabel('$u$')    # CORRETTO
     ax.grid(True)
 
-    filename = f"Plots/{Bif}_bifurcation_plot_NPC_{N_PC}_mu_{float(mu)}_sigma_{float(sigma)}.pdf"
-    filename_png = f"Plots/{Bif}_bifurcation_plot_NPC_{N_PC}_mu_{float(mu)}_sigma_{float(sigma)}.png"
+    filename = f"plots/{Bif}_bifurcation_plot_NPC_{N_PC}_mu_{float(mu)}_sigma_{float(sigma)}.pdf"
+    filename_png = f"plots/{Bif}_bifurcation_plot_NPC_{N_PC}_mu_{float(mu)}_sigma_{float(sigma)}.png"
 
     if ls is True:
-        filename = f"Plots/Least_squares_{Bif}_bifurcation_plot_NPC_{N_PC}_mu_{float(mu)}_sigma_{float(sigma)}.pdf"
-        filename_png = f"Plots/Least_squares_{Bif}_bifurcation_plot_NPC_{N_PC}_mu_{float(mu)}_sigma_{float(sigma)}.png"
+        filename = f"plots/Least_squares_{Bif}_bifurcation_plot_NPC_{N_PC}_mu_{float(mu)}_sigma_{float(sigma)}.pdf"
+        filename_png = f"plots/Least_squares_{Bif}_bifurcation_plot_NPC_{N_PC}_mu_{float(mu)}_sigma_{float(sigma)}.png"
 
 
     if save is True:
@@ -796,7 +796,7 @@ def Sampling_histogram(N_PC, mu, sigma, polynomials, number_of_sampling, Bif, gr
         ax.legend(loc='upper right')
 
         ax.grid(True)
-        fig.savefig(f"Plots/{Bif}_Histogram_sampling_{N_PC}_mu_{float(mu)}_sigma_{float(sigma)}.pdf",bbox_inches='tight')
+        fig.savefig(f"plots/{Bif}_Histogram_sampling_{N_PC}_mu_{float(mu)}_sigma_{float(sigma)}.pdf",bbox_inches='tight')
 
     return x_kde[peaks_idx]
 
@@ -857,7 +857,7 @@ def Extrema_scatter(N_PC, mu, sigma, solutions, polynomials, Bif, graph = True):
     ax.set_ylabel("$u$")
     ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1.05), ncol=2)
 
-    fig.savefig(f"Plots/{Bif}_Scatter_extrema_{N_PC}_{float(mu)}_{float(sigma)}.pdf",bbox_inches='tight')
+    fig.savefig(f"plots/{Bif}_Scatter_extrema_{N_PC}_{float(mu)}_{float(sigma)}.pdf",bbox_inches='tight')
 
 
 def Extrema_histogram(N_PC, mu, sigma, solutions, polynomials, Bif, graph = True):
@@ -938,6 +938,6 @@ def Extrema_histogram(N_PC, mu, sigma, solutions, polynomials, Bif, graph = True
         ax.legend(loc='upper right')
 
         ax.grid(True)
-        fig.savefig(f"Plots/{Bif}_Histogram_local_extrema_{N_PC}_mu_{float(mu)}_sigma_{float(sigma)}.pdf",bbox_inches='tight')
+        fig.savefig(f"plots/{Bif}_Histogram_local_extrema_{N_PC}_mu_{float(mu)}_sigma_{float(sigma)}.pdf",bbox_inches='tight')
 
     return x_kde[peaks_idx]
