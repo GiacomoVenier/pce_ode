@@ -1,0 +1,28 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+env/
+.env
+
+# MacOS system files
+.DS_Store
+
+# Output dei risultati (Grafici e Testi)
+# Escludiamo i file pesanti generati, mantenendo la struttura del software
+**/plots/*.pdf
+**/plots/*.png
+bifurcation_plots/*/plots/*
+software_multi_d/*.pdf
+software_multi_d/*.png
+output.txt
+
+# Se vuoi escludere tutti i PDF/PNG nel progetto scommenta queste:
+*.pdf
+*.png
