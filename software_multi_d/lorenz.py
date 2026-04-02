@@ -152,7 +152,7 @@ class Lorenz():
                 ax[i].hist(vals, bins="fd", density=True, alpha=0.5, edgecolor="black", linewidth=0.7)
         fig.suptitle(fr"$\gamma=\mathcal{{U}}({self.gamma.lower.item():.3g},{self.gamma.upper.item():.3g}), \rho=\mathcal{{U}}({self.rho.lower.item():.3g},{self.rho.upper.item():.3g}), \theta=\mathcal{{U}}({self.theta.lower.item():.3g},{self.theta.upper.item():.3g})$")
         # put labels and save 
-        fig.savefig(f"lorenz_poly_({self.gamma.lower.item():.3g},{self.gamma.upper.item():.3g})_({self.rho.lower.item():.3g},{self.rho.upper.item():.3g})_({self.theta.lower.item():.3g},{self.theta.upper.item():.3g})_{degree_pc=}_{n_init=}.pdf", bbox_inches="tight", transparent=transparent)
+        fig.savefig(f"plots/lorenz_poly_({self.gamma.lower.item():.3g},{self.gamma.upper.item():.3g})_({self.rho.lower.item():.3g},{self.rho.upper.item():.3g})_({self.theta.lower.item():.3g},{self.theta.upper.item():.3g})_{degree_pc=}_{n_init=}.pdf", bbox_inches="tight", transparent=transparent)
         plt.close(fig)
 
     def plot_xyz_rho(self, n_branch):
@@ -184,7 +184,7 @@ class Lorenz():
                 ax[2].plot(self.rho_samples,samples_solution[i][j][2],'o',markersize=2.5, color=color)
                 degree+=1
         fig.legend()
-        fig.savefig(f"lorenz_BA_poly_({self.gamma.lower.item():.3g},{self.gamma.upper.item():.3g})_({self.rho.lower.item():.3g},{self.rho.upper.item():.3g})_({self.theta.lower.item():.3g},{self.theta.upper.item():.3g})_{degree_pc=}_{n_init=}.pdf", bbox_inches="tight")
+        fig.savefig(f"plots/lorenz_BA_poly_({self.gamma.lower.item():.3g},{self.gamma.upper.item():.3g})_({self.rho.lower.item():.3g},{self.rho.upper.item():.3g})_({self.theta.lower.item():.3g},{self.theta.upper.item():.3g})_{degree_pc=}_{n_init=}.pdf", bbox_inches="tight")
         plt.close(fig)
 
 degree_pc=5
