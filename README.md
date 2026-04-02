@@ -4,8 +4,10 @@ This repository contains a computational framework for the study of equilibrium 
 
 ## Mathematical Background
 
-The project addresses the root-finding problem for a parametric vector field f(u, mu + sigma * xi) = 0. The equilibrium branch is approximated using a truncated polynomial series:
-u(xi) ~ sum( u_j * Phi_j(xi) )
+The project addresses the root-finding problem for a parametric vector field $f(u, \mu + \sigma\xi) = 0$. The equilibrium branch is approximated using a truncated polynomial series:
+$$
+u_{N}(\xi)=\sum_{j=0}^{N} \hat{u}_{N,j}\,\Phi_j(\xi).
+$$
 
 The theoretical framework, based on the Newton-Kantorovich theorem, guarantees that the Galerkin projections converge stably to the true equilibrium branches. It also ensures that the discrete system preserves the uniqueness of the continuous problem, avoiding spurious solutions even in multi-dimensional systems through specific radial coercivity constraints.
 
