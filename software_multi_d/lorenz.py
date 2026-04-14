@@ -10,9 +10,19 @@ import matplotlib.patches as patches
 np.random.seed(241)
 
 # matplotlib.pyplot options
+plt.rcParams.update({
+    'font.size': 30,           # Dimensione generale del font
+    'axes.titlesize': 30,      # Titolo dell'asse
+    'axes.labelsize': 30,      # Etichette degli assi
+    'legend.fontsize': 20,     # Legenda
+    'xtick.labelsize': 30,     # Etichette asse x
+    'ytick.labelsize': 30      # Etichette asse y
+})
+
+
 plt.rcParams['text.latex.preamble']=r"\usepackage{lmodern}"
 plt.rcParams['text.usetex'] = True
-plt.rcParams['font.size'] = 20
+plt.rcParams['font.size'] = 30
 plt.rcParams['font.family'] = 'lmodern'
 
 class Lorenz():
@@ -186,21 +196,89 @@ class Lorenz():
         fig.legend()
         fig.savefig(f"plots/lorenz_BA_poly_({self.gamma.lower.item():.3g},{self.gamma.upper.item():.3g})_({self.rho.lower.item():.3g},{self.rho.upper.item():.3g})_({self.theta.lower.item():.3g},{self.theta.upper.item():.3g})_{degree_pc=}_{n_init=}.pdf", bbox_inches="tight")
         plt.close(fig)
+        
+    def plot_xyz_rho_2(self, n_branch):
+        fig, ax = plt.subplots(1, 3, figsize=(20, 6))
+        ax[0].set_xlabel(r"$\rho$")
+        ax[1].set_xlabel(r"$\rho$")
+        ax[2].set_xlabel(r"$\rho$")
+        ax[0].set_ylabel(r"$x$")
+        ax[1].set_ylabel(r"$y$")
+        ax[2].set_ylabel(r"$z$")
+        
+        xi_grid = np.linspace(-np.sqrt(3), np.sqrt(3), 500)
+        grid_eval = np.vstack([np.zeros_like(xi_grid), xi_grid, np.zeros_like(xi_grid)])
+        rho_grid = xi_grid * cp.Std(self.rho) + cp.E(self.rho)
+        
+        theta_mean = cp.E(self.theta)
+        
+        for i in range(3):
+            ax[i].plot(rho_grid, np.zeros_like(rho_grid), 'k', linewidth=4.0, zorder=1, label=r'$\bar{u}$' if i==0 else None)
+            
+        rho_valid = rho_grid[rho_grid >= 1.0]
+        x_branch = np.sqrt(theta_mean * (rho_valid - 1.0))
+        z_branch = rho_valid - 1.0
+        
+        ax[0].plot(rho_valid, x_branch, 'k', linewidth=4.0, zorder=1)
+        ax[0].plot(rho_valid, -x_branch, 'k', linewidth=4.0, zorder=1)
+        ax[1].plot(rho_valid, x_branch, 'k', linewidth=4.0, zorder=1) # y = x for exact branches
+        ax[1].plot(rho_valid, -x_branch, 'k', linewidth=4.0, zorder=1)
+        ax[2].plot(rho_valid, z_branch, 'k', linewidth=4.0, zorder=1)
+        
+        max_deg = max([deg for branch in self.solution for (_, deg) in branch]) if self.solution[0] else 0
+        colors = plt.cm.coolwarm(np.linspace(0, 1, max_deg + 1))
+        
+        for i in range(min(n_branch, len(self.solution))):
+            for j in range(len(self.solution[i])):
+                coeffs, deg = self.solution[i][j]
+                
+                phi_eval = cp.generate_expansion(deg, self.seed_rv, retall=True)[0](*grid_eval)
+                approx = coeffs.T @ phi_eval
+                
+                if deg == max_deg:
+                    label = rf'$u_{{{deg}}}$' if i == 0 else None
+                    ax[0].plot(rho_grid, approx[0], color=colors[deg], linewidth=2.0, zorder=5, linestyle='--',
+                     marker='o', markersize=6, markevery=30, label=label)
+                    ax[1].plot(rho_grid, approx[1], color=colors[deg], linewidth=2.0, zorder=5, linestyle='--',
+                     marker='o', markersize=6, markevery=30)
+                    ax[2].plot(rho_grid, approx[2], color=colors[deg], linewidth=2.0, zorder=5, linestyle='--',
+                     marker='o', markersize=6, markevery=30)
+                else:
+                    ax[0].plot(rho_grid, approx[0], color=colors[deg], linewidth=1, linestyle='--', alpha=0.6, zorder=2)
+                    ax[1].plot(rho_grid, approx[1], color=colors[deg], linewidth=1, linestyle='--', alpha=0.6, zorder=2)
+                    ax[2].plot(rho_grid, approx[2], color=colors[deg], linewidth=1, linestyle='--', alpha=0.6, zorder=2)
 
-degree_pc=5
-n_init=5
+        for i in range(3):
+            ax[i].grid(True, alpha=0.3)
+            
+        ax[0].legend()
+        fig.tight_layout()
+        fig.savefig(f"plots/lorenz_poly_({self.gamma.lower.item():.3g},{self.gamma.upper.item():.3g})_({self.rho.lower.item():.3g},{self.rho.upper.item():.3g})_({self.theta.lower.item():.3g},{self.theta.upper.item():.3g})_{degree_pc=}_{n_init=}.pdf", bbox_inches="tight")
+        plt.close(fig)
+
+degree_pc=6
+n_init=1
 n_branch_to_approximate = 3
 
 model = Lorenz(gamma=cp.Uniform(10.,10.*1.00001), 
-                rho=cp.Uniform(2.0,30.0),
+                rho=cp.Uniform(1,2),
                 theta=cp.Uniform(2.66666, 2.66667),
                 seed_rv=cp.J(cp.Uniform(-np.sqrt(3),np.sqrt(3)),cp.Uniform(-np.sqrt(3),np.sqrt(3)),cp.Uniform(-np.sqrt(3),np.sqrt(3))), 
                 n_samples=1000)
-# model.run(degree_pc=degree_pc, n_init=n_init)
-# tmp = model.solution.copy()
-model.continuation(degree_pc=degree_pc, n_branch=n_branch_to_approximate)
-# run_results_formatted = [[(sol, degree_pc)] for sol in tmp]
-# model.solution = model.solution + run_results_formatted
-model.plot_xyz_rho(n_branch=n_branch_to_approximate)
 
-# model.plot_poly(transparent=False)
+
+RUN_RANDOM_INIT = False 
+RUN_CONTINUATION = True
+
+if RUN_RANDOM_INIT:
+    print("\n=== Executing Random Initialization ===")
+    model.run(degree_pc=degree_pc, n_init=n_init)
+    run_results_formatted = [[(sol, degree_pc)] for sol in model.solution]
+    model.solution = run_results_formatted
+    model.plot_xyz_rho_2(n_branch=n_init) 
+    # model.plot_poly(transparent=False)
+
+if RUN_CONTINUATION:
+    print("\n=== Executing Degree Continuation ===")
+    model.continuation(degree_pc=degree_pc, n_branch=n_branch_to_approximate)
+    model.plot_xyz_rho_2(n_branch=n_branch_to_approximate)
