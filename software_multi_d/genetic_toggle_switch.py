@@ -194,7 +194,7 @@ class ToggleSwitch():
             
         ax[0].legend()
         fig.tight_layout()
-        fig.savefig(f"plots/toggle_poly_({self.mu.lower.item():.3g},{self.mu.upper.item():.3g})_{degree_pc=}.pdf", bbox_inches="tight")
+        fig.savefig(f"plots/toggle_poly_({self.mu.lower.item():.3g},{self.mu.upper.item():.3g})_{degree_pc=}.png", bbox_inches="tight")
         plt.close(fig)
 
 if __name__ == "__main__":
@@ -203,6 +203,16 @@ if __name__ == "__main__":
     n_branch_to_approximate = 3
     
     # We span across mu=2 to capture the pitchfork bifurcation
+    model = ToggleSwitch(
+        mu=cp.Uniform(1.7, 3),
+        seed_rv=cp.J(cp.Uniform(-np.sqrt(3), np.sqrt(3))), # 1D chaos
+        n_samples=1000
+    )
+
+    print("\n=== Executing Degree Continuation ===")
+    model.continuation(degree_pc=degree_pc, n_branch=n_branch_to_approximate)
+    model.plot_xy_mu(n_branch=n_branch_to_approximate)
+
     model = ToggleSwitch(
         mu=cp.Uniform(-4, 2),
         seed_rv=cp.J(cp.Uniform(-np.sqrt(3), np.sqrt(3))), # 1D chaos
