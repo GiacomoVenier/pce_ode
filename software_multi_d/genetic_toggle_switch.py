@@ -157,7 +157,7 @@ class ToggleSwitch():
         ax[0].plot(mu_grid, sym_x, 'k', linewidth=4.0, zorder=1, label=r'Exact $\bar{u}$')
         ax[1].plot(mu_grid, sym_x, 'k', linewidth=4.0, zorder=1)
         
-        # Asymmetric branches (exist for mu >= 2)
+        # Asymmetric branches
         mu_valid = mu_grid[mu_grid >= 2.0]
         if len(mu_valid) > 0:
             asym_x1 = (mu_valid + np.sqrt(mu_valid**2 - 4)) / 2
@@ -165,7 +165,7 @@ class ToggleSwitch():
             
             ax[0].plot(mu_valid, asym_x1, 'k', linewidth=4.0, zorder=1)
             ax[0].plot(mu_valid, asym_x2, 'k', linewidth=4.0, zorder=1)
-            ax[1].plot(mu_valid, asym_x2, 'k', linewidth=4.0, zorder=1) # y is flipped
+            ax[1].plot(mu_valid, asym_x2, 'k', linewidth=4.0, zorder=1)
             ax[1].plot(mu_valid, asym_x1, 'k', linewidth=4.0, zorder=1)
         
         # --- Plot the PCE approximations ---
@@ -185,9 +185,9 @@ class ToggleSwitch():
                      marker='o', markersize=6, markevery=30, label=label)
                     ax[1].plot(mu_grid, approx[1], color=colors[deg], linewidth=2.0, zorder=5, linestyle='--',
                      marker='o', markersize=6, markevery=30)
-                else:
-                    ax[0].plot(mu_grid, approx[0], color=colors[deg], linewidth=1, linestyle='--', alpha=0.6, zorder=2)
-                    ax[1].plot(mu_grid, approx[1], color=colors[deg], linewidth=1, linestyle='--', alpha=0.6, zorder=2)
+                # else:
+                #     ax[0].plot(mu_grid, approx[0], color=colors[deg], linewidth=1, linestyle='--', alpha=0.6, zorder=2)
+                #     ax[1].plot(mu_grid, approx[1], color=colors[deg], linewidth=1, linestyle='--', alpha=0.6, zorder=2)
 
         for i in range(2):
             ax[i].grid(True, alpha=0.3)
@@ -203,18 +203,18 @@ if __name__ == "__main__":
     n_branch_to_approximate = 3
     
     # We span across mu=2 to capture the pitchfork bifurcation
-    model = ToggleSwitch(
-        mu=cp.Uniform(1.7, 3),
-        seed_rv=cp.J(cp.Uniform(-np.sqrt(3), np.sqrt(3))), # 1D chaos
-        n_samples=1000
-    )
+    # model = ToggleSwitch(
+    #     mu=cp.Uniform(1.7, 3),
+    #     seed_rv=cp.J(cp.Uniform(-np.sqrt(3), np.sqrt(3))), # 1D chaos
+    #     n_samples=1000
+    # )
 
-    print("\n=== Executing Degree Continuation ===")
-    model.continuation(degree_pc=degree_pc, n_branch=n_branch_to_approximate)
-    model.plot_xy_mu(n_branch=n_branch_to_approximate)
+    # print("\n=== Executing Degree Continuation ===")
+    # model.continuation(degree_pc=degree_pc, n_branch=n_branch_to_approximate)
+    # model.plot_xy_mu(n_branch=n_branch_to_approximate)
 
     model = ToggleSwitch(
-        mu=cp.Uniform(-4, 2),
+        mu=cp.Uniform(-20, 40),
         seed_rv=cp.J(cp.Uniform(-np.sqrt(3), np.sqrt(3))), # 1D chaos
         n_samples=1000
     )
