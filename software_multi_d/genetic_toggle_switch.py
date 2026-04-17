@@ -107,37 +107,51 @@ class ToggleSwitch():
             
             while degree_pc_iter <= degree_pc:
                 counter += 1 
+
                 if degree_pc_iter == 0:
-                    # Different initializations to catch different branches
-                    # The symmetric branch is near (1,1), asymmetric are scattered
-                    coeff_init = 2.0 * np.random.randn(1, 2)
+                    # n_pc is 1 for degree 0. Initial guess for (x_mean, y_mean)
+                    # We use (2,) shape to ensure ravel() produces [x_mean, y_mean]
+                    current_guess = 2.0 * np.random.randn(2)
                 else:
-                    tmp = np.zeros((self.n_pc, 2))
-                    tmp[:len(coeff_init)] = coeff_init
-                    coeff_init = tmp.T
-                
-                sol = root(self.f, coeff_init.ravel(), method='lm', tol=1e-8, jac=self.jacobian)
+                    # 1. Start with zeros for the new basis size (2 variables * n_pc)
+                    new_guess = np.zeros((2, self.n_pc))
+                    
+                    # 2. 'c' is the result from the previous degree, shape (n_pc, 2)
+                    # We must move the old coefficients into the new_guess
+                    old_n_pc = c.shape[0]
+                    new_guess[0, :old_n_pc] = c[:, 0] # Previous x coefficients
+                    new_guess[1, :old_n_pc] = c[:, 1] # Previous y coefficients
+                    
+                    current_guess = new_guess.ravel()
+
+                # Solve: current_guess is always 2 * self.n_pc
+                sol = root(self.f, current_guess, method='lm', tol=1e-8, jac=self.jacobian)
                 loss = np.sum(np.abs(self.f(sol.x)))
-                c = sol.x.reshape(2, self.n_pc).T
                 
-                control = not any(np.isclose(c, self.solution[j][0][0]).all() for j in range(i) if self.solution[j]) if (degree_pc_iter == 0 and i > 0) else True
+                # Reshape for the NEXT iteration: (2, n_pc) then T -> (n_pc, 2)
+                c = sol.x.reshape(2, self.n_pc).T 
+                
+                # Check if this branch is unique (at degree 0)
+                control = not any(np.isclose(c[0, 0], self.solution[j][0][0][0,0], atol=1e-2) 
+                                 for j in range(i) if self.solution[j]) if (degree_pc_iter == 0 and i > 0) else True
                 
                 if (loss < 1e-6) and control:
                     self.solution[i].append((c, degree_pc_iter)) 
                     self.samples_solution[i].append((c.T @ self.phi(*self.seed_rv_samples)))
+                    
+                    # Prepare for next degree
                     degree_pc_iter += 1
                     counter = 0 
-                    coeff_init = c.copy()
                     self.phi, self.phi_norm = cp.generate_expansion(degree_pc_iter, self.seed_rv, retall=True)
                     self.n_pc = len(self.phi_norm)
                 
-                if counter > 50: 
+                if counter > 200: 
                     print(f"Stopping branch {i}: reached max attempts.")
                     break
             print(f"Branch sequence found for branch {i}")
 
     def plot_xy_mu(self, n_branch):
-        fig, ax = plt.subplots(1, 2, figsize=(14, 6))
+        fig, ax = plt.subplots(1, 2, figsize=(20, 7))
         ax[0].set_xlabel(r"$\mu$")
         ax[1].set_xlabel(r"$\mu$")
         ax[0].set_ylabel(r"$x$")
@@ -147,30 +161,38 @@ class ToggleSwitch():
         grid_eval = np.atleast_2d(xi_grid)
         mu_grid = xi_grid * cp.Std(self.mu) + cp.E(self.mu)
         
-        # --- Compute the Exact Branches ---
-        sym_x = np.zeros_like(mu_grid)
-        for idx, m in enumerate(mu_grid):
-            # Symmetric root: x^3 + x - mu = 0
+        xi_grid2 = np.linspace(-np.sqrt(3), np.sqrt(3), 5000)
+        mu_grid2 = xi_grid2 * cp.Std(self.mu) + cp.E(self.mu)
+        
+        sym_x = np.zeros_like(mu_grid2)
+        for idx, m in enumerate(mu_grid2):
             roots = np.roots([1, 0, 1, -m])
             sym_x[idx] = np.real(roots[np.isreal(roots)][0])
             
-        ax[0].plot(mu_grid, sym_x, 'k', linewidth=4.0, zorder=1, label=r'Exact $\bar{u}$')
-        ax[1].plot(mu_grid, sym_x, 'k', linewidth=4.0, zorder=1)
+        ax[0].plot(mu_grid2, sym_x, 'k', linewidth=4.0, zorder=1, label=r'$\bar{u}$')
+        ax[1].plot(mu_grid2, sym_x, 'k', linewidth=4.0, zorder=1)
         
-        # Asymmetric branches
-        mu_valid = mu_grid[mu_grid >= 2.0]
-        if len(mu_valid) > 0:
-            asym_x1 = (mu_valid + np.sqrt(mu_valid**2 - 4)) / 2
-            asym_x2 = (mu_valid - np.sqrt(mu_valid**2 - 4)) / 2
-            
-            ax[0].plot(mu_valid, asym_x1, 'k', linewidth=4.0, zorder=1)
-            ax[0].plot(mu_valid, asym_x2, 'k', linewidth=4.0, zorder=1)
-            ax[1].plot(mu_valid, asym_x2, 'k', linewidth=4.0, zorder=1)
-            ax[1].plot(mu_valid, asym_x1, 'k', linewidth=4.0, zorder=1)
+        # Define the two disjoint regions
+        regions = [mu_grid2[mu_grid2 <= -2.0], mu_grid2[mu_grid2 >= 2.0]]
+        
+        for m_sub in regions:
+            if len(m_sub) > 0:
+                asym_x1 = (m_sub + np.sqrt(m_sub**2 - 4)) / 2
+                asym_x2 = (m_sub - np.sqrt(m_sub**2 - 4)) / 2
+                
+                # Plotting for ax[0]
+                ax[0].plot(m_sub, asym_x1, 'k', linewidth=4.0, zorder=1)
+                ax[0].plot(m_sub, asym_x2, 'k', linewidth=4.0, zorder=1)
+                
+                # Plotting for ax[1]
+                ax[1].plot(m_sub, asym_x1, 'k', linewidth=4.0, zorder=1)
+                ax[1].plot(m_sub, asym_x2, 'k', linewidth=4.0, zorder=1)
         
         # --- Plot the PCE approximations ---
         max_deg = max([deg for branch in self.solution for (_, deg) in branch]) if self.solution[0] else 0
-        colors = plt.cm.coolwarm(np.linspace(0, 1, max_deg + 1))
+        
+        # Custom colors
+        branch_colors = ["#065895", "#f79a25", "#77ac30"]
         
         for i in range(min(n_branch, len(self.solution))):
             for j in range(len(self.solution[i])):
@@ -180,26 +202,26 @@ class ToggleSwitch():
                 approx = coeffs.T @ phi_eval # Shape: (2, 500)
                 
                 if deg == max_deg:
-                    label = rf'PCE $u_{{{deg}}}$' if i == 0 else None
-                    ax[0].plot(mu_grid, approx[0], color=colors[deg], linewidth=2.0, zorder=5, linestyle='--',
-                     marker='o', markersize=6, markevery=30, label=label)
-                    ax[1].plot(mu_grid, approx[1], color=colors[deg], linewidth=2.0, zorder=5, linestyle='--',
-                     marker='o', markersize=6, markevery=30)
-                # else:
-                #     ax[0].plot(mu_grid, approx[0], color=colors[deg], linewidth=1, linestyle='--', alpha=0.6, zorder=2)
-                #     ax[1].plot(mu_grid, approx[1], color=colors[deg], linewidth=1, linestyle='--', alpha=0.6, zorder=2)
+                    b_color = branch_colors[i % len(branch_colors)]
+                    label = rf'$u_{{{deg}}}$ Branch {i}' 
+                    
+                    ax[0].plot(mu_grid, approx[0], color=b_color, linewidth=2.0, zorder=5, linestyle='--',
+                     marker='o', markersize=8, markevery=30, label=label)
+                    ax[1].plot(mu_grid, approx[1], color=b_color, linewidth=2.0, zorder=5, linestyle='--',
+                     marker='o', markersize=8, markevery=30)
 
         for i in range(2):
             ax[i].grid(True, alpha=0.3)
             
-        ax[0].legend()
+        # ax[0].legend()
         fig.tight_layout()
-        fig.savefig(f"plots/toggle_poly_({self.mu.lower.item():.3g},{self.mu.upper.item():.3g})_{degree_pc=}.png", bbox_inches="tight")
+        fig.savefig(f"plots/toggle_poly_({self.mu.lower.item():.3g},{self.mu.upper.item():.3g})_{degree_pc=}.pdf", bbox_inches="tight")
+        plt.show()
         plt.close(fig)
 
 if __name__ == "__main__":
     
-    degree_pc = 10
+    degree_pc = 20
     n_branch_to_approximate = 3
     
     # We span across mu=2 to capture the pitchfork bifurcation
@@ -214,7 +236,7 @@ if __name__ == "__main__":
     # model.plot_xy_mu(n_branch=n_branch_to_approximate)
 
     model = ToggleSwitch(
-        mu=cp.Uniform(-20, 40),
+        mu=cp.Uniform(-1.95, 1.95),
         seed_rv=cp.J(cp.Uniform(-np.sqrt(3), np.sqrt(3))), # 1D chaos
         n_samples=1000
     )
