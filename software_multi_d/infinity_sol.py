@@ -2,11 +2,11 @@ import chaospy as cp
 import numpy as np
 from scipy.optimize import root
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d import Axes3D # Necessario per proiezioni 3D in alcune versioni di matplotlib
 
 np.random.seed(241)
 
-# Impostazioni grafiche
+# matplotlib.pyplot options
 plt.rcParams.update({
     'font.size': 20,
     'axes.titlesize': 20,
@@ -21,23 +21,24 @@ plt.rcParams['text.usetex'] = True
 plt.rcParams['font.size'] = 20
 plt.rcParams['font.family'] = 'lmodern'
 
-class ToggleSwitch():
-    def __init__(self, mu, seed_rv, n_samples=10000):
-        self.mu = mu
+class BifurcationSystem():
+    def __init__(self, eps, seed_rv, n_samples=10000):
+        self.eps = eps
         self.seed_rv = seed_rv
         self.n_kl = len(self.seed_rv)
         self.n_samples = n_samples
 
-        self.seed_rv_samples = np.atleast_2d(self.seed_rv.sample(n_samples)) 
-        self.mu_samples = self.seed_rv_samples[0] * cp.Std(self.mu) + cp.E(self.mu) 
+        self.seed_rv_samples = np.atleast_2d(self.seed_rv.sample(n_samples))
+        self.eps_samples = self.seed_rv_samples[0] * cp.Std(self.eps) + cp.E(self.eps)
 
     def f(self, c):
         c = c.reshape(2, self.n_pc).T
         phi = self.phi(*self.seed_rv_samples) 
         x, y = c.T @ phi 
         
-        x_dot = ((-x + self.mu_samples / (1 + y**2)) @ phi.T) / self.n_samples 
-        y_dot = ((-y + self.mu_samples / (1 + x**2)) @ phi.T) / self.n_samples 
+        # Campo vettoriale x*(1-x^2-y^2)+eps , y*(1-x^2-y^2)
+        x_dot = ((x * (1 - x**2 - y**2) + self.eps_samples) @ phi.T) / self.n_samples 
+        y_dot = ((y * (1 - x**2 - y**2)) @ phi.T) / self.n_samples 
         
         return np.concatenate([x_dot, y_dot])
 
@@ -46,10 +47,10 @@ class ToggleSwitch():
         phi = self.phi(*self.seed_rv_samples) 
         x, y = c.T @ phi
 
-        Jxx = (-phi @ phi.T) / self.n_samples
-        Jxy = ((-self.mu_samples * 2 * y / (1 + y**2)**2 * phi) @ phi.T) / self.n_samples
-        Jyx = ((-self.mu_samples * 2 * x / (1 + x**2)**2 * phi) @ phi.T) / self.n_samples
-        Jyy = (-phi @ phi.T) / self.n_samples
+        Jxx = (((1 - 3*x**2 - y**2) * phi) @ phi.T) / self.n_samples
+        Jxy = (((-2*x*y) * phi) @ phi.T) / self.n_samples
+        Jyx = (((-2*x*y) * phi) @ phi.T) / self.n_samples
+        Jyy = (((1 - x**2 - 3*y**2) * phi) @ phi.T) / self.n_samples
         
         J = np.block([
                 [Jxx, Jxy],
@@ -94,8 +95,8 @@ class ToggleSwitch():
                 else:
                     new_guess = np.zeros((2, self.n_pc))
                     old_n_pc = c.shape[0]
-                    new_guess[0, :old_n_pc] = c[:, 0] 
-                    new_guess[1, :old_n_pc] = c[:, 1] 
+                    new_guess[0, :old_n_pc] = c[:, 0]
+                    new_guess[1, :old_n_pc] = c[:, 1]
                     current_guess = new_guess.ravel()
 
                 sol = root(self.f, current_guess, method='lm', tol=1e-8, jac=self.jacobian)
@@ -120,143 +121,117 @@ class ToggleSwitch():
                     break
             print(f"Branch sequence found for branch {i}")
 
-    def get_exact_branches(self, mu_range):
-        """Calcola dinamicamente tutti i rami esatti (simmetrici e asimmetrici) per un dato intervallo di mu."""
-        mu_exact = np.linspace(np.min(mu_range) - 0.5, np.max(mu_range) + 0.5, 2000)
-        
-        # Ramo 1: Soluzione simmetrica (x = y) => x^3 + x - mu = 0
-        sym_x = np.zeros_like(mu_exact)
-        for idx, m in enumerate(mu_exact):
-            roots = np.roots([1, 0, 1, -m])
-            sym_x[idx] = np.real(roots[np.isreal(roots)][0])
-            
-        # Rami 2 e 3: Soluzioni asimmetriche (x = 1/y) => valide solo per |mu| >= 2
-        mask_valid = np.abs(mu_exact) >= 2.0
-        mu_asym = mu_exact[mask_valid]
-        
-        asym_x1, asym_y1, asym_x2, asym_y2 = [], [], [], []
-        if len(mu_asym) > 0:
-            asym_x1 = (mu_asym + np.sqrt(mu_asym**2 - 4)) / 2
-            asym_y1 = (mu_asym - np.sqrt(mu_asym**2 - 4)) / 2
-            
-            asym_x2 = (mu_asym - np.sqrt(mu_asym**2 - 4)) / 2
-            asym_y2 = (mu_asym + np.sqrt(mu_asym**2 - 4)) / 2
-            
-        return mu_exact, sym_x, mu_asym, asym_x1, asym_y1, asym_x2, asym_y2
-
-    def plot_xy_mu(self, n_branch):
+    def plot_xy_eps(self, n_branch):
         fig, ax = plt.subplots(1, 2, figsize=(20, 7))
-        ax[0].set_xlabel(r"$\mu$")
-        ax[1].set_xlabel(r"$\mu$")
+        ax[0].set_xlabel(r"$\epsilon$")
+        ax[1].set_xlabel(r"$\epsilon$")
         ax[0].set_ylabel(r"$x$")
         ax[1].set_ylabel(r"$y$")
         
-        xi_grid = np.linspace(-np.sqrt(3), np.sqrt(3), 500)
-        grid_eval = np.atleast_2d(xi_grid)
-        mu_grid = xi_grid * cp.Std(self.mu) + cp.E(self.mu)
+        x_exact = np.linspace(-2.0, 2.0, 1000)
+        eps_exact = x_exact**3 - x_exact
         
-        # --- Soluzioni Esatte Dinamiche ---
-        mu_exact, sym_x, mu_asym, asym_x1, asym_y1, asym_x2, asym_y2 = self.get_exact_branches(mu_grid)
+        ax[0].plot(eps_exact, x_exact, 'k', linewidth=4.0, zorder=1, label='Sol. Esatta')
+        ax[1].plot(eps_exact, np.zeros_like(x_exact), 'k', linewidth=4.0, zorder=1)
         
-        ax[0].plot(mu_exact, sym_x, 'k', linewidth=4.0, zorder=1, label=r'Esatto ($\bar{u}$)')
-        ax[1].plot(mu_exact, sym_x, 'k', linewidth=4.0, zorder=1)
-        
-        if len(mu_asym) > 0:
-            ax[0].plot(mu_asym, asym_x1, 'gray', linewidth=3.0, zorder=1)
-            ax[0].plot(mu_asym, asym_x2, 'gray', linewidth=3.0, zorder=1)
-            ax[1].plot(mu_asym, asym_y1, 'gray', linewidth=3.0, zorder=1)
-            ax[1].plot(mu_asym, asym_y2, 'gray', linewidth=3.0, zorder=1)
-        
-        # --- Soluzioni Approssimate PCE ---
-        max_deg = max([deg for branch in self.solution for (_, deg) in branch]) if self.solution[0] else 0
-        branch_colors = ["#065895", "#f79a25", "#77ac30", "#d9534f"]
-        
-        for i in range(min(n_branch, len(self.solution))):
-            for j in range(len(self.solution[i])):
-                coeffs, deg = self.solution[i][j]
-                
-                phi_eval = cp.generate_expansion(deg, self.seed_rv, retall=True)[0](*grid_eval)
-                approx = coeffs.T @ phi_eval 
-                
-                if deg == max_deg:
-                    b_color = branch_colors[i % len(branch_colors)]
-                    label = rf'$u_{{{deg}}}$ Branch {i}' 
-                    
-                    ax[0].plot(mu_grid, approx[0], color=b_color, linewidth=2.0, zorder=5, linestyle='--',
-                     marker='o', markersize=6, markevery=30, label=label)
-                    ax[1].plot(mu_grid, approx[1], color=b_color, linewidth=2.0, zorder=5, linestyle='--',
-                     marker='o', markersize=6, markevery=30)
-
-        for i in range(2):
-            ax[i].grid(True, alpha=0.3)
-            ax[i].set_xlim([np.min(mu_grid), np.max(mu_grid)])
-            
-        fig.tight_layout()
-        plt.show()
-
-    def plot_3d_bifurcation(self, n_branch):
-        fig = plt.figure(figsize=(12, 10))
-        ax = fig.add_subplot(111, projection='3d')
-        
-        ax.set_xlabel(r"$x$")
-        ax.set_ylabel(r"$y$")
-        ax.set_zlabel(r"$\mu$")
-        # ax.set_title("Toggle Switch: Diagramma 3D e PCE")
+        theta = np.linspace(0, 2*np.pi, 500)
+        x_circ = np.cos(theta)
+        y_circ = np.sin(theta)
+        ax[0].plot(np.zeros_like(x_circ), x_circ, 'k', linewidth=4.0, zorder=1)
+        ax[1].plot(np.zeros_like(y_circ), y_circ, 'k', linewidth=4.0, zorder=1)
         
         xi_grid = np.linspace(-np.sqrt(3), np.sqrt(3), 500)
         grid_eval = np.atleast_2d(xi_grid)
-        mu_grid = xi_grid * cp.Std(self.mu) + cp.E(self.mu)
+        eps_grid = xi_grid * cp.Std(self.eps) + cp.E(self.eps)
         
-        # --- Soluzioni Esatte Dinamiche ---
-        mu_exact, sym_x, mu_asym, asym_x1, asym_y1, asym_x2, asym_y2 = self.get_exact_branches(mu_grid)
-        
-        ax.plot(sym_x, sym_x, mu_exact, 'k', linewidth=4.0, zorder=1, label=r'Ramo Esatto ($x=y$)')
-        
-        if len(mu_asym) > 0:
-            # Separiamo la porzione positiva e negativa per evitare linee continue che attraversano il vuoto
-            mask_pos = mu_asym >= 2.0
-            mask_neg = mu_asym <= -2.0
-            
-            for m_mask in [mask_pos, mask_neg]:
-                if np.any(m_mask):
-                    ax.plot(asym_x1[m_mask], asym_y1[m_mask], mu_asym[m_mask], 'gray', linewidth=3.0, zorder=1)
-                    ax.plot(asym_x2[m_mask], asym_y2[m_mask], mu_asym[m_mask], 'gray', linewidth=3.0, zorder=1)
-
-        # --- Soluzioni Approssimate PCE ---
         max_deg = max([deg for branch in self.solution for (_, deg) in branch]) if self.solution[0] else 0
-        branch_colors = ["#065895", "#f79a25", "#77ac30", "#d9534f"]
+        branch_colors = ["#065895", "#f79a25", "#77ac30"]
         
         for i in range(min(n_branch, len(self.solution))):
             for j in range(len(self.solution[i])):
                 coeffs, deg = self.solution[i][j]
                 if deg == max_deg:
                     phi_eval = cp.generate_expansion(deg, self.seed_rv, retall=True)[0](*grid_eval)
-                    approx = coeffs.T @ phi_eval 
+                    approx = coeffs.T @ phi_eval
                     
                     b_color = branch_colors[i % len(branch_colors)]
                     label = rf'$u_{{{deg}}}$ Branch {i}' 
                     
-                    ax.plot(approx[0], approx[1], mu_grid, color=b_color, linewidth=2.5, 
+                    ax[0].plot(eps_grid, approx[0], color=b_color, linewidth=2.0, zorder=5, linestyle='--', marker='o', markersize=6, markevery=30, label=label)
+                    ax[1].plot(eps_grid, approx[1], color=b_color, linewidth=2.0, zorder=5, linestyle='--', marker='o', markersize=6, markevery=30)
+
+        for i in range(2):
+            ax[i].grid(True, alpha=0.3)
+            ax[i].set_xlim([np.min(eps_grid), np.max(eps_grid)])
+            
+        fig.tight_layout()
+        plt.show()
+
+    def plot_3d_bifurcation(self, n_branch):
+        """Nuovo metodo per plottare in 3D sia le soluzioni esatte che quelle approssimate"""
+        fig = plt.figure(figsize=(12, 10))
+        ax = fig.add_subplot(111, projection='3d')
+        
+        ax.set_xlabel(r"$x$")
+        ax.set_ylabel(r"$y$")
+        ax.set_zlabel(r"$\epsilon$")
+        ax.set_title("Diagramma di Biforcazione 3D e Approssimazioni PCE")
+        
+        # 1. Soluzioni Esatte
+        # Curva cubica nel piano y=0
+        x_exact = np.linspace(-1.5, 1.5, 500)
+        eps_exact = x_exact**3 - x_exact
+        ax.plot(x_exact, np.zeros_like(x_exact), eps_exact, 'k', linewidth=4.0, zorder=1, label='Ramo y=0 (Esatto)')
+        
+        # Cerchio unitario nel piano eps=0
+        theta = np.linspace(0, 2*np.pi, 500)
+        x_circ = np.cos(theta)
+        y_circ = np.sin(theta)
+        ax.plot(x_circ, y_circ, np.zeros_like(x_circ), 'k', linewidth=4.0, zorder=1, label='Anello Degenere (Esatto)')
+        
+        # 2. Soluzioni Approssimate (PCE)
+        xi_grid = np.linspace(-np.sqrt(3), np.sqrt(3), 500)
+        grid_eval = np.atleast_2d(xi_grid)
+        eps_grid = xi_grid * cp.Std(self.eps) + cp.E(self.eps)
+        
+        max_deg = max([deg for branch in self.solution for (_, deg) in branch]) if self.solution[0] else 0
+        branch_colors = ["#065895", "#f79a25", "#77ac30"]
+        
+        for i in range(min(n_branch, len(self.solution))):
+            for j in range(len(self.solution[i])):
+                coeffs, deg = self.solution[i][j]
+                if deg == max_deg:
+                    phi_eval = cp.generate_expansion(deg, self.seed_rv, retall=True)[0](*grid_eval)
+                    approx = coeffs.T @ phi_eval # Shape: (2, 500)
+                    
+                    b_color = branch_colors[i % len(branch_colors)]
+                    label = rf'$u_{{{deg}}}$ Branch {i}' 
+                    
+                    # Plot in 3D: x=approx[0], y=approx[1], z=eps_grid
+                    ax.plot(approx[0], approx[1], eps_grid, color=b_color, linewidth=2.5, 
                             linestyle='--', marker='o', markersize=6, markevery=30, label=label, zorder=5)
 
-        ax.view_init(elev=20, azim=45)
-        # ax.legend()
+        # Aggiusta la visuale iniziale per mostrare bene l'intersezione
+        ax.view_init(elev=20, azim=-60)
+        ax.legend()
         plt.tight_layout()
         plt.show()
 
 if __name__ == "__main__":
     degree_pc = 20
     n_branch_to_approximate = 3
-
-    # Utilizziamo un dominio che attraversa il punto di biforcazione (mu >= 2) 
-    # in modo da verificare che i 3 rami appaiano dove teoricamente previsti.
-    model = ToggleSwitch(
-        mu=cp.Uniform(-6, 14), 
+    
+    model = BifurcationSystem(
+        eps=cp.Uniform(0.3, 1),
         seed_rv=cp.J(cp.Uniform(-np.sqrt(3), np.sqrt(3))), # 1D chaos
         n_samples=1000
     )
 
     print("\n=== Executing Degree Continuation ===")
     model.continuation(degree_pc=degree_pc, n_branch=n_branch_to_approximate)
-    model.plot_xy_mu(n_branch=n_branch_to_approximate)
+    
+    # Plot 2D standard
+    model.plot_xy_eps(n_branch=n_branch_to_approximate)
+    
+    # Nuovo Plot 3D interattivo
     model.plot_3d_bifurcation(n_branch=n_branch_to_approximate)
