@@ -13,19 +13,23 @@ import copy
 from tqdm import tqdm
 
 plt.rcParams.update({
-    'font.size': 30,           # Dimensione generale del font
-    'axes.titlesize': 30,      # Titolo dell'asse
-    'axes.labelsize': 30,      # Etichette degli assi
-    'legend.fontsize': 20,     # Legenda
-    'xtick.labelsize': 30,     # Etichette asse x
-    'ytick.labelsize': 30      # Etichette asse y
+    "font.size": 13,
+    "text.usetex": True,
+    "text.latex.preamble": r"\usepackage{lmodern}",
+    "font.family": "serif",
+
+    'legend.fontsize': 'x-large',
+    'axes.labelsize': 'x-large',
+    'axes.titlesize':'xx-large',
+    'xtick.labelsize':'x-large',
+    'ytick.labelsize':'x-large',
+    'lines.linewidth': 3,
+    "axes.linewidth": 1.2,
+    "xtick.direction": "in",
+    "ytick.direction": "in",
+    "xtick.top": True,
+    "ytick.right": True,
 })
-
-
-plt.rcParams['text.latex.preamble']=r"\usepackage{lmodern}"
-plt.rcParams['text.usetex'] = True
-plt.rcParams['font.size'] = 30
-plt.rcParams['font.family'] = 'lmodern'
 
 bluemathlab="#065895"
 orangemathlab="#f79a25"
@@ -634,7 +638,7 @@ def Plot_polynomials(polynomials, N_PC, mu, sigma, Bif, save=False, ls=False):
     b = float(mu + sigma)
     x_vals = np.linspace(a, b, 400)
 
-    fig, ax = plt.subplots(figsize=(10, 6))  # solo un asse
+    fig, ax = plt.subplots()  # solo un asse
 
     for i, poly in enumerate(polynomials):
         y_vals = poly(x_vals)
@@ -667,7 +671,7 @@ def Plot_polynomials(polynomials, N_PC, mu, sigma, Bif, save=False, ls=False):
             ax.plot(positivi, [math.sqrt(p) for p in positivi], color="black", linestyle=":")
             ax.plot(positivi, [-math.sqrt(p) for p in positivi], color="black", linestyle=":")
         ax.plot(x_vals, np.zeros_like(x_vals), color='black', linestyle=":")
-        ax.set_title("Pitchfork Bifurcation")
+        # ax.set_title("Pitchfork Bifurcation")
 
 
     if Bif == "S":
