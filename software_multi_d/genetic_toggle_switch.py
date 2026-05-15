@@ -195,7 +195,8 @@ class ToggleSwitch():
         
         # --- Soluzioni Approssimate PCE ---
         max_deg = max([deg for branch in self.solution for (_, deg) in branch]) if self.solution[0] else 0
-        branch_colors = ["#065895", "#f79a25", "#77ac30", "#d9534f"]
+        branch_colors = ["#f79a25", "#065895", "#77ac30", "#d9534f"]
+
         
         for i in range(min(n_branch, len(self.solution))):
             for j in range(len(self.solution[i])):
@@ -209,23 +210,40 @@ class ToggleSwitch():
                     label = rf'$N={{{deg}}}$' 
                     
                     # Plot x
-                    ax1.plot(mu_grid, approx[0], color=b_color, zorder=5, linestyle='--',
-                             marker='o', markersize=5, markevery=40, label=label)
+                    ax1.plot(mu_grid, approx[0], color=b_color, zorder=5, 
+                             marker='o', markersize=5, markevery=40, linestyle='--', alpha=1, label=label)
                     # Plot y
-                    ax2.plot(mu_grid, approx[1], color=b_color, zorder=5, linestyle='--',
-                             marker='o', markersize=5, markevery=40, label=label)
+                    ax2.plot(mu_grid, approx[1], color=b_color, zorder=5, 
+                             marker='o', markersize=5, markevery=40, linestyle='--', alpha=1, label=label)
 
-        # Finalizzazione layout e salvataggio
-        for ax in [ax1, ax2]:
+        all_x_vals = []
+        all_y_vals = []
+        for i in range(len(self.solution)):
+            for j in range(len(self.solution[i])):
+                coeffs, deg = self.solution[i][j]
+                if deg == max_deg:
+                    phi_eval = cp.generate_expansion(deg, self.seed_rv, retall=True)[0](*grid_eval)
+                    approx = coeffs.T @ phi_eval
+                    all_x_vals.extend(approx[0])
+                    all_y_vals.extend(approx[1])
+
+        # Imposta i limiti con un margine del 5% per non toccare i bordi
+        for ax, data in zip([ax1, ax2], [all_x_vals, all_y_vals]):
             ax.grid(True, alpha=0.3)
             ax.set_xlim([np.min(mu_grid), np.max(mu_grid)])
+            
+            if data:
+                min_v, max_v = np.min(data), np.max(data)
+                margin = (max_v - min_v) * 0.05
+                ax.set_ylim([min_v - margin, max_v + margin])
+            
             ax.legend(loc="upper left", borderpad=0.2, labelspacing=0.2, handlelength=1.5)
             
         fig1.tight_layout()
-        fig1.savefig(f"plots/Approximation_x_mu.pdf", bbox_inches='tight')
+        fig1.savefig(f"plots/Genetic_Toggle_Switch_x_mu_N_{degree_pc}_mu_{self.mu}_.pdf", bbox_inches='tight')
 
         fig2.tight_layout()
-        fig2.savefig(f"plots/Approximation_y_mu.pdf", bbox_inches='tight')
+        fig2.savefig(f"plots/Genetic_Toggle_Switch_y_mu_N_{degree_pc}_mu_{self.mu}_.pdf", bbox_inches='tight')
         plt.show()
 
     def plot_3d_bifurcation(self, n_branch):
@@ -255,7 +273,8 @@ class ToggleSwitch():
 
         # --- Soluzioni Approssimate PCE ---
         max_deg = max([deg for branch in self.solution for (_, deg) in branch]) if self.solution[0] else 0
-        branch_colors = ["#065895", "#f79a25", "#77ac30", "#d9534f"]
+        branch_colors = ["#f79a25", "#065895", "#77ac30", "#d9534f"]
+
         
         for i in range(min(n_branch, len(self.solution))):
             for j in range(len(self.solution[i])):
@@ -268,8 +287,8 @@ class ToggleSwitch():
                     label = rf'$N={{{deg}}}$' 
                     
                     # Uniformato stile: linea 2.5, marker ogni 40 punti
-                    ax.plot(approx[0], approx[1], mu_grid, color=b_color,
-                            linestyle='--', marker='o', markersize=5, markevery=40, label=label, zorder=5)
+                    ax.plot(approx[0], approx[1], mu_grid, color=b_color, 
+                             marker='o', markersize=5, markevery=40, linestyle='--', alpha=1, label=label, zorder=5)
 
         ax.view_init(elev=20, azim=45)
         
@@ -280,12 +299,12 @@ class ToggleSwitch():
         #     labelspacing=0.2,
         #     handlelength=1.5
         # )
-        ax.set_xticks([-5, 5, 15])
-        ax.set_yticks([-5, 5, 15])
+        # ax.set_xticks([-5, 5, 15])
+        # ax.set_yticks([-5, 5, 15])
         fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
         
         # Salva "ritagliando" il grafico, con un padding minimo per non tagliare le etichette
-        fig.savefig("plots/Approximation_3d_bifurcation.pdf", bbox_inches='tight', pad_inches=0.1)
+        fig.savefig(f"plots/Genetic_Toggle_Switch_3d_N_{degree_pc}_mu_{self.mu}_.pdf", bbox_inches='tight', pad_inches=0.1)
         plt.show()
 
 if __name__ == "__main__":
@@ -295,7 +314,7 @@ if __name__ == "__main__":
     # Utilizziamo un dominio che attraversa il punto di biforcazione (mu >= 2) 
     # in modo da verificare che i 3 rami appaiano dove teoricamente previsti.
     model = ToggleSwitch(
-        mu=cp.Uniform(-6, 14), 
+        mu=cp.Uniform(-2,2), 
         seed_rv=cp.J(cp.Uniform(-np.sqrt(3), np.sqrt(3))), # 1D chaos
         n_samples=1000
     )
