@@ -6,20 +6,25 @@ from mpl_toolkits.mplot3d import Axes3D
 
 np.random.seed(241)
 
-# Impostazioni grafiche
 plt.rcParams.update({
-    'font.size': 20,
-    'axes.titlesize': 20,
-    'axes.labelsize': 20,
-    'legend.fontsize': 15,
-    'xtick.labelsize': 15,
-    'ytick.labelsize': 15
+    "font.size": 13,
+    "text.usetex": True,
+    "text.latex.preamble": r"\usepackage{lmodern}",
+    "font.family": "serif",
+
+    'legend.fontsize': 'x-large',
+    'axes.labelsize': 'x-large',
+    'axes.titlesize':'xx-large',
+    'xtick.labelsize':'x-large',
+    'ytick.labelsize':'x-large',
+    'lines.linewidth': 3,
+    "axes.linewidth": 1.2,
+    "xtick.direction": "in",
+    "ytick.direction": "in",
+    "xtick.top": True,
+    "ytick.right": True,
 })
 
-plt.rcParams['text.latex.preamble']=r"\usepackage{lmodern}"
-plt.rcParams['text.usetex'] = True
-plt.rcParams['font.size'] = 20
-plt.rcParams['font.family'] = 'lmodern'
 
 class ToggleSwitch():
     def __init__(self, mu, seed_rv, n_samples=10000):
@@ -130,42 +135,63 @@ class ToggleSwitch():
             roots = np.roots([1, 0, 1, -m])
             sym_x[idx] = np.real(roots[np.isreal(roots)][0])
             
-        # Rami 2 e 3: Soluzioni asimmetriche (x = 1/y) => valide solo per |mu| >= 2
-        mask_valid = np.abs(mu_exact) >= 2.0
-        mu_asym = mu_exact[mask_valid]
+        # Rami 2 e 3: Inizializziamo tutto con NaN per "spezzare" le linee
+        asym_x1 = np.full_like(mu_exact, np.nan)
+        asym_y1 = np.full_like(mu_exact, np.nan)
+        asym_x2 = np.full_like(mu_exact, np.nan)
+        asym_y2 = np.full_like(mu_exact, np.nan)
         
-        asym_x1, asym_y1, asym_x2, asym_y2 = [], [], [], []
-        if len(mu_asym) > 0:
-            asym_x1 = (mu_asym + np.sqrt(mu_asym**2 - 4)) / 2
-            asym_y1 = (mu_asym - np.sqrt(mu_asym**2 - 4)) / 2
+        # Maschera: valide solo per |mu| >= 2
+        mask_valid = np.abs(mu_exact) >= 2.0
+        
+        if np.any(mask_valid):
+            mu_valid = mu_exact[mask_valid]
+            asym_x1[mask_valid] = (mu_valid + np.sqrt(mu_valid**2 - 4)) / 2
+            asym_y1[mask_valid] = (mu_valid - np.sqrt(mu_valid**2 - 4)) / 2
             
-            asym_x2 = (mu_asym - np.sqrt(mu_asym**2 - 4)) / 2
-            asym_y2 = (mu_asym + np.sqrt(mu_asym**2 - 4)) / 2
+            asym_x2[mask_valid] = (mu_valid - np.sqrt(mu_valid**2 - 4)) / 2
+            asym_y2[mask_valid] = (mu_valid + np.sqrt(mu_valid**2 - 4)) / 2
             
-        return mu_exact, sym_x, mu_asym, asym_x1, asym_y1, asym_x2, asym_y2
+        return mu_exact, sym_x, asym_x1, asym_y1, asym_x2, asym_y2
 
     def plot_xy_mu(self, n_branch):
-        fig, ax = plt.subplots(1, 2, figsize=(20, 7))
-        ax[0].set_xlabel(r"$\mu$")
-        ax[1].set_xlabel(r"$\mu$")
-        ax[0].set_ylabel(r"$x$")
-        ax[1].set_ylabel(r"$y$")
-        
         xi_grid = np.linspace(-np.sqrt(3), np.sqrt(3), 500)
         grid_eval = np.atleast_2d(xi_grid)
         mu_grid = xi_grid * cp.Std(self.mu) + cp.E(self.mu)
         
         # --- Soluzioni Esatte Dinamiche ---
-        mu_exact, sym_x, mu_asym, asym_x1, asym_y1, asym_x2, asym_y2 = self.get_exact_branches(mu_grid)
+        # Nota: mu_asym non serve più, usiamo mu_exact per tutto
+        mu_exact, sym_x, asym_x1, asym_y1, asym_x2, asym_y2 = self.get_exact_branches(mu_grid)
         
-        ax[0].plot(mu_exact, sym_x, 'k', linewidth=4.0, zorder=1, label=r'Esatto ($\bar{u}$)')
-        ax[1].plot(mu_exact, sym_x, 'k', linewidth=4.0, zorder=1)
+        # ---------------------------------------------------------
+        # Figura 1: Approssimazione per la variabile x
+        # ---------------------------------------------------------
+        fig1, ax1 = plt.subplots()
+        ax1.set_xlabel(r"$\mu$")
+        ax1.set_ylabel(r"$x$")
         
-        if len(mu_asym) > 0:
-            ax[0].plot(mu_asym, asym_x1, 'gray', linewidth=3.0, zorder=1)
-            ax[0].plot(mu_asym, asym_x2, 'gray', linewidth=3.0, zorder=1)
-            ax[1].plot(mu_asym, asym_y1, 'gray', linewidth=3.0, zorder=1)
-            ax[1].plot(mu_asym, asym_y2, 'gray', linewidth=3.0, zorder=1)
+        # Ramo esatto principale
+        ax1.plot(mu_exact, sym_x, 'k', zorder=1, label=r'$\bar{u}$')
+        
+        # Disegna rami asimmetrici (i NaN spezzeranno automaticamente la linea)
+        if not np.all(np.isnan(asym_x1)):
+            ax1.plot(mu_exact, asym_x1, 'k', zorder=1)
+            ax1.plot(mu_exact, asym_x2, 'k', zorder=1)
+        
+        # ---------------------------------------------------------
+        # Figura 2: Approssimazione per la variabile y
+        # ---------------------------------------------------------
+        fig2, ax2 = plt.subplots()
+        ax2.set_xlabel(r"$\mu$")
+        ax2.set_ylabel(r"$y$")
+        
+        # Ramo esatto principale
+        ax2.plot(mu_exact, sym_x, 'k', zorder=1, label=r'$\bar{u}$')
+        
+        # Disegna rami asimmetrici (i NaN spezzeranno automaticamente la linea)
+        if not np.all(np.isnan(asym_y1)):
+            ax2.plot(mu_exact, asym_y1, 'k', zorder=1)
+            ax2.plot(mu_exact, asym_y2, 'k', zorder=1)
         
         # --- Soluzioni Approssimate PCE ---
         max_deg = max([deg for branch in self.solution for (_, deg) in branch]) if self.solution[0] else 0
@@ -180,47 +206,52 @@ class ToggleSwitch():
                 
                 if deg == max_deg:
                     b_color = branch_colors[i % len(branch_colors)]
-                    label = rf'$u_{{{deg}}}$ Branch {i}' 
+                    label = rf'$N={{{deg}}}$' 
                     
-                    ax[0].plot(mu_grid, approx[0], color=b_color, linewidth=2.0, zorder=5, linestyle='--',
-                     marker='o', markersize=6, markevery=30, label=label)
-                    ax[1].plot(mu_grid, approx[1], color=b_color, linewidth=2.0, zorder=5, linestyle='--',
-                     marker='o', markersize=6, markevery=30)
+                    # Plot x
+                    ax1.plot(mu_grid, approx[0], color=b_color, zorder=5, linestyle='--',
+                             marker='o', markersize=5, markevery=40, label=label)
+                    # Plot y
+                    ax2.plot(mu_grid, approx[1], color=b_color, zorder=5, linestyle='--',
+                             marker='o', markersize=5, markevery=40, label=label)
 
-        for i in range(2):
-            ax[i].grid(True, alpha=0.3)
-            ax[i].set_xlim([np.min(mu_grid), np.max(mu_grid)])
+        # Finalizzazione layout e salvataggio
+        for ax in [ax1, ax2]:
+            ax.grid(True, alpha=0.3)
+            ax.set_xlim([np.min(mu_grid), np.max(mu_grid)])
+            ax.legend(loc="upper left", borderpad=0.2, labelspacing=0.2, handlelength=1.5)
             
-        fig.tight_layout()
+        fig1.tight_layout()
+        fig1.savefig(f"plots/Approximation_x_mu.pdf", bbox_inches='tight')
+
+        fig2.tight_layout()
+        fig2.savefig(f"plots/Approximation_y_mu.pdf", bbox_inches='tight')
         plt.show()
 
     def plot_3d_bifurcation(self, n_branch):
-        fig = plt.figure(figsize=(12, 10))
+        fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
-        ax.set_zlabel(r"$\mu$")
-        # ax.set_title("Toggle Switch: Diagramma 3D e PCE")
+        ax.zaxis.set_rotate_label(False) 
+        ax.set_zlabel(r"$\mu$", rotation=90, labelpad=15)
         
         xi_grid = np.linspace(-np.sqrt(3), np.sqrt(3), 500)
         grid_eval = np.atleast_2d(xi_grid)
         mu_grid = xi_grid * cp.Std(self.mu) + cp.E(self.mu)
         
         # --- Soluzioni Esatte Dinamiche ---
-        mu_exact, sym_x, mu_asym, asym_x1, asym_y1, asym_x2, asym_y2 = self.get_exact_branches(mu_grid)
+        # Riceviamo gli array completi con i NaN già inseriti nella zona vuota
+        mu_exact, sym_x, asym_x1, asym_y1, asym_x2, asym_y2 = self.get_exact_branches(mu_grid)
         
-        ax.plot(sym_x, sym_x, mu_exact, 'k', linewidth=4.0, zorder=1, label=r'Ramo Esatto ($x=y$)')
+        # Ramo principale simmetrico (x = y)
+        ax.plot(sym_x, sym_x, mu_exact, 'k', zorder=1, label=r'$\bar{u}$')
         
-        if len(mu_asym) > 0:
-            # Separiamo la porzione positiva e negativa per evitare linee continue che attraversano il vuoto
-            mask_pos = mu_asym >= 2.0
-            mask_neg = mu_asym <= -2.0
-            
-            for m_mask in [mask_pos, mask_neg]:
-                if np.any(m_mask):
-                    ax.plot(asym_x1[m_mask], asym_y1[m_mask], mu_asym[m_mask], 'gray', linewidth=3.0, zorder=1)
-                    ax.plot(asym_x2[m_mask], asym_y2[m_mask], mu_asym[m_mask], 'gray', linewidth=3.0, zorder=1)
+        # Rami asimmetrici (i NaN spezzeranno automaticamente le linee in 3D)
+        if not np.all(np.isnan(asym_x1)):
+            ax.plot(asym_x1, asym_y1, mu_exact, 'k', zorder=1)
+            ax.plot(asym_x2, asym_y2, mu_exact, 'k', zorder=1)
 
         # --- Soluzioni Approssimate PCE ---
         max_deg = max([deg for branch in self.solution for (_, deg) in branch]) if self.solution[0] else 0
@@ -234,14 +265,27 @@ class ToggleSwitch():
                     approx = coeffs.T @ phi_eval 
                     
                     b_color = branch_colors[i % len(branch_colors)]
-                    label = rf'$u_{{{deg}}}$ Branch {i}' 
+                    label = rf'$N={{{deg}}}$' 
                     
-                    ax.plot(approx[0], approx[1], mu_grid, color=b_color, linewidth=2.5, 
-                            linestyle='--', marker='o', markersize=6, markevery=30, label=label, zorder=5)
+                    # Uniformato stile: linea 2.5, marker ogni 40 punti
+                    ax.plot(approx[0], approx[1], mu_grid, color=b_color,
+                            linestyle='--', marker='o', markersize=5, markevery=40, label=label, zorder=5)
 
         ax.view_init(elev=20, azim=45)
-        # ax.legend()
-        plt.tight_layout()
+        
+        # Legenda con formattazione pulita
+        # ax.legend(
+        #     loc="upper left",
+        #     borderpad=0.2,
+        #     labelspacing=0.2,
+        #     handlelength=1.5
+        # )
+        ax.set_xticks([-5, 5, 15])
+        ax.set_yticks([-5, 5, 15])
+        fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+        
+        # Salva "ritagliando" il grafico, con un padding minimo per non tagliare le etichette
+        fig.savefig("plots/Approximation_3d_bifurcation.pdf", bbox_inches='tight', pad_inches=0.1)
         plt.show()
 
 if __name__ == "__main__":
