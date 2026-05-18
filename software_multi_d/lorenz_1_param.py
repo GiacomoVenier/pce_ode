@@ -230,7 +230,7 @@ class Lorenz():
 
         # --- Soluzioni Approssimate PCE ---
         max_deg = max([deg for branch in self.solution for (_, deg) in branch]) if self.solution[0] else 0
-        branch_colors = ["#f79a25", "#065895", "#77ac30", "#d9534f"]
+        branch_colors = ["#77ac30", "#f79a25", "#065895", "#d9534f"]
         
         for i in range(min(n_branch, len(self.solution))):
             for j in range(len(self.solution[i])):
@@ -336,7 +336,7 @@ if __name__ == "__main__":
     )
 
     RUN_RANDOM_INIT = False 
-    RUN_CONTINUATION = True
+    RUN_CONTINUATION = False
 
     if RUN_RANDOM_INIT:
         print("\n=== Executing Random Initialization ===")
