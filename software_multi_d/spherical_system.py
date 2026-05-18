@@ -316,6 +316,7 @@ class SphericalSystem():
         fig.tight_layout()
         fig.savefig(f"plots/SphericalSystem_2d_xy_rho_N_{degree_pc}_rho_{self.mu}_N_init_{len(valid_branches)}.pdf", bbox_inches='tight')
         plt.show()
+        plt.close()
 
     def plot_3d_bifurcation(self):
         """Plot 3D universale per le soluzioni unificate."""
@@ -336,7 +337,7 @@ class SphericalSystem():
         
         # --- Soluzioni Esatte 3D ---
         mu_exact = np.linspace(np.min(mu_grid)-0.05, np.max(mu_grid)+0.05, 500)
-        ax.plot(mu_exact**3, np.zeros_like(mu_exact), mu_exact, 'k',  zorder=10, label=r'$\bar{u}$ (Ramo $E_1$)')
+        ax.plot(mu_exact**3, np.zeros_like(mu_exact), mu_exact, 'k',  label=r'$\bar{u}$ (Ramo $E_1$)')
         
         mu_min_plot = max(-1.0, np.min(mu_grid) - 0.05)
         mu_max_plot = min(1.0, np.max(mu_grid) + 0.05)
@@ -357,7 +358,7 @@ class SphericalSystem():
 
         # --- Soluzioni Approssimate PCE ---
         valid_branches = [b for b in self.solution if b]
-        colors = plt.cm.jet(np.linspace(0, 1, max(1, len(valid_branches))))
+        colors = plt.cm.hsv(np.linspace(0, 0.9, max(1, len(valid_branches))))
         
         for i, branch in enumerate(valid_branches):
             for j in range(len(branch)):
@@ -369,7 +370,7 @@ class SphericalSystem():
                 label = rf'$N={{{deg}}}$ Branch {i}' 
                 
                 ax.plot(approx[0], approx[1], mu_grid, color=b_color, 
-                        linestyle='--', marker='o', markersize=5, markevery=40, label=label if j==0 else None, zorder=5)
+                        linestyle='--', marker='o', markersize=5, markevery=40, label=label if j==0 else None)
 
         ax.view_init(elev=17, azim=-110)
         
@@ -393,34 +394,39 @@ class SphericalSystem():
             
         fig.savefig(f"plots/SphericalSystem_3d_xy_rho_N_{degree_pc}_rho_{self.mu}_N_init_{len(valid_branches)}.pdf", bbox_inches='tight', pad_inches=0.1)
         plt.show()
+        plt.close()
 
 if __name__ == "__main__":
     degree_pc = 10
-    
-    model = SphericalSystem(
-        mu=cp.Uniform(-2, 2), 
-        seed_rv=cp.J(cp.Uniform(-np.sqrt(3), np.sqrt(3))),
-        n_samples=1000
-    )
+    mu_values=[cp.Uniform(-1, 1), cp.Uniform(0, 1), cp.Uniform(-0.5, 0.5), cp.Uniform(-2, 2)]
+    mu_values=[cp.Uniform(1, 2)]
+    # mu_values=[cp.Uniform(-2, 2)]
 
-    RUN_CONTINUATION = False
-    RUN_RANDOM_SEARCH = True
-
-    if RUN_CONTINUATION:
-        model.continuation(
-            degree_pc=degree_pc, 
-            n_branch=20,
-            start_std=0.1/np.sqrt(3)
+    for val in mu_values:
+        model = SphericalSystem(
+            mu=val, 
+            seed_rv=cp.J(cp.Uniform(-np.sqrt(3), np.sqrt(3))),
+            n_samples=1000
         )
+
+        RUN_CONTINUATION = False
+        RUN_RANDOM_SEARCH = True
+
+        if RUN_CONTINUATION:
+            model.continuation(
+                degree_pc=degree_pc, 
+                n_branch=20,
+                start_std=0.1/np.sqrt(3)
+            )
+            
+        if RUN_RANDOM_SEARCH:
+            model.run_random_searches(
+                degree_pc=degree_pc, 
+                n_init=1,
+                max_attempts=300
+            )
         
-    if RUN_RANDOM_SEARCH:
-        model.run_random_searches(
-            degree_pc=degree_pc, 
-            n_init=1,
-            max_attempts=300
-        )
-    
-    # Genera i grafici finali cumulativi
-    print("\nGenerazione grafici in corso...")
-    model.plot_xy_mu()
-    model.plot_3d_bifurcation()
+        # Genera i grafici finali cumulativi
+        print("\nGenerating plots...")
+        model.plot_xy_mu()
+        model.plot_3d_bifurcation()
