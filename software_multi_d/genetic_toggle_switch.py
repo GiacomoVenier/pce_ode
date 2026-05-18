@@ -7,7 +7,7 @@ from mpl_toolkits.mplot3d import Axes3D
 np.random.seed(241)
 
 plt.rcParams.update({
-    "font.size": 13,
+    "font.size": 10,
     "text.usetex": True,
     "text.latex.preamble": r"\usepackage{lmodern}",
     "font.family": "serif",
@@ -240,10 +240,10 @@ class ToggleSwitch():
             ax.legend(loc="upper left", borderpad=0.2, labelspacing=0.2, handlelength=1.5)
             
         fig1.tight_layout()
-        fig1.savefig(f"plots/Genetic_Toggle_Switch_x_mu_N_{degree_pc}_mu_{self.mu}_.pdf", bbox_inches='tight')
+        fig1.savefig(f"plots/Genetic_Toggle_Switch_x_mu_N_{degree_pc}_mu_{self.mu}.pdf", bbox_inches='tight')
 
         fig2.tight_layout()
-        fig2.savefig(f"plots/Genetic_Toggle_Switch_y_mu_N_{degree_pc}_mu_{self.mu}_.pdf", bbox_inches='tight')
+        fig2.savefig(f"plots/Genetic_Toggle_Switch_y_mu_N_{degree_pc}_mu_{self.mu}.pdf", bbox_inches='tight')
         plt.show()
 
     def plot_3d_bifurcation(self, n_branch):
@@ -290,24 +290,37 @@ class ToggleSwitch():
                     ax.plot(approx[0], approx[1], mu_grid, color=b_color, 
                              marker='o', markersize=5, markevery=40, linestyle='--', alpha=1, label=label, zorder=5)
 
-        ax.view_init(elev=20, azim=45)
+        ax.view_init(elev=17, azim=-110)
         
-        # Legenda con formattazione pulita
-        # ax.legend(
-        #     loc="upper left",
-        #     borderpad=0.2,
-        #     labelspacing=0.2,
-        #     handlelength=1.5
-        # )
-        # ax.set_xticks([-5, 5, 15])
-        # ax.set_yticks([-5, 5, 15])
         fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
         
+        if hasattr(ax, 'set_box_aspect'):
+            ax.set_box_aspect(None, zoom=0.90)
+        else:
+            ax.dist = 11
+        
         # Salva "ritagliando" il grafico, con un padding minimo per non tagliare le etichette
-        fig.savefig(f"plots/Genetic_Toggle_Switch_3d_N_{degree_pc}_mu_{self.mu}_.pdf", bbox_inches='tight', pad_inches=0.1)
+        fig.savefig(f"plots/Genetic_Toggle_Switch_3d_N_{degree_pc}_mu_{self.mu}.pdf", bbox_inches='tight', pad_inches=0.1)
         plt.show()
 
 if __name__ == "__main__":
+    
+    degree_pc = 20
+    n_branch_to_approximate = 3
+
+    # Utilizziamo un dominio che attraversa il punto di biforcazione (mu >= 2) 
+    # in modo da verificare che i 3 rami appaiano dove teoricamente previsti.
+    model = ToggleSwitch(
+        mu=cp.Uniform(-6,15), 
+        seed_rv=cp.J(cp.Uniform(-np.sqrt(3), np.sqrt(3))), # 1D chaos
+        n_samples=1000
+    )
+
+    print("\n=== Executing Degree Continuation ===")
+    model.continuation(degree_pc=degree_pc, n_branch=n_branch_to_approximate)
+    model.plot_xy_mu(n_branch=n_branch_to_approximate)
+    model.plot_3d_bifurcation(n_branch=n_branch_to_approximate)
+    
     degree_pc = 20
     n_branch_to_approximate = 3
 
