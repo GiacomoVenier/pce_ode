@@ -11,7 +11,7 @@ np.random.seed(42)
 
 # Nuove impostazioni grafiche standardizzate
 plt.rcParams.update({
-    "font.size": 10,
+    "font.size": 13,
     "text.usetex": True,
     "text.latex.preamble": r"\usepackage{lmodern}",
     "font.family": "serif",
@@ -53,6 +53,9 @@ class SphericalSystem():
         x_dot = (((x - self.mu_samples**3) * (1 - x**2 - y**2 - self.mu_samples**2)) @ phi.T) / self.n_samples 
         y_dot = ((y * (1 - x**2 - y**2 - self.mu_samples**2)) @ phi.T) / self.n_samples 
         
+        # x_dot = ((1 - x**2 - y**2 - self.mu_samples**2) @ phi.T) / self.n_samples 
+        # y_dot = ((1 - x**2 - y**2 - self.mu_samples**2) @ phi.T) / self.n_samples 
+        
         return np.concatenate([x_dot, y_dot])
 
     def jacobian(self, c):
@@ -64,6 +67,11 @@ class SphericalSystem():
         Jxy = (((-2*x*y + 2*y*self.mu_samples**3) * phi) @ phi.T) / self.n_samples
         Jyx = (((-2*x*y) * phi) @ phi.T) / self.n_samples
         Jyy = (((1 - x**2 - 3*y**2 - self.mu_samples**2) * phi) @ phi.T) / self.n_samples
+        
+        # Jxx = ((-2*x * phi) @ phi.T) / self.n_samples
+        # Jxy = ((0 * phi) @ phi.T) / self.n_samples
+        # Jyx = ((0 * phi) @ phi.T) / self.n_samples
+        # Jyy = ((-2*y* phi) @ phi.T) / self.n_samples
         
         J = np.block([
                 [Jxx, Jxy],
@@ -136,6 +144,7 @@ class SphericalSystem():
                 
                 sol = root(self.f, new_guess.ravel(), method='lm', tol=1e-9, jac=self.jacobian)
                 loss = np.sum(np.abs(self.f(sol.x)))
+                c_matrix = sol.x.reshape(2, self.n_pc).T 
                 
                 if loss < 1e-6:
                     c_current = sol.x.reshape(n_eq, self.n_pc).T
@@ -254,16 +263,18 @@ class SphericalSystem():
         print(f"  -> Ricerca Random terminata.")
 
     def plot_xy_mu(self):
-        """Plotta le soluzioni in spazio (x, mu) e (y, mu) usando la struttura dati unificata."""
+        """Plotta le soluzioni in spazio (x, mu) e (y, mu) in due figure separate."""
         if not self.solution or all(not branch for branch in self.solution):
             print("Nessuna soluzione da plottare.")
             return
             
-        fig, ax = plt.subplots(1, 2)
-        ax[0].set_xlabel(r"$\mu$")
-        ax[1].set_xlabel(r"$\mu$")
-        ax[0].set_ylabel(r"$x$")
-        ax[1].set_ylabel(r"$y$")
+        fig_x, ax_x = plt.subplots()
+        fig_y, ax_y = plt.subplots()
+        
+        ax_x.set_xlabel(r"$\mu$")
+        ax_y.set_xlabel(r"$\mu$")
+        ax_x.set_ylabel(r"$x$")
+        ax_y.set_ylabel(r"$y$")
         
         xi_grid = np.linspace(-np.sqrt(3), np.sqrt(3), 500)
         grid_eval = np.atleast_2d(xi_grid)
@@ -271,16 +282,16 @@ class SphericalSystem():
                 
         # --- Soluzioni Esatte ---
         mu_exact = np.linspace(np.min(mu_grid), np.max(mu_grid), 1000)
-        ax[0].plot(mu_exact, mu_exact**3, 'k',  zorder=10, label=r'$\bar{u}$ (Ramo $E_1$)')
-        ax[1].plot(mu_exact, np.zeros_like(mu_exact), 'k',  zorder=10)
+        ax_x.plot(mu_exact, mu_exact**3, 'k',  zorder=10, label=r'$\bar{u}$ (Ramo $E_1$)')
+        ax_y.plot(mu_exact, np.zeros_like(mu_exact), 'k',  zorder=10)
         
         mu_ring = np.linspace(-1.0, 1.0, 500)
         ring_radius = np.sqrt(1 - mu_ring**2)
         
-        ax[0].plot(mu_ring, ring_radius, 'k',  zorder=10, label=r'Anello Degenere')
-        ax[0].plot(mu_ring, -ring_radius, 'k',  zorder=10)
-        ax[1].plot(mu_ring, ring_radius, 'k',  zorder=10)
-        ax[1].plot(mu_ring, -ring_radius, 'k',  zorder=10)
+        ax_x.plot(mu_ring, ring_radius, color='gray', zorder=1)
+        ax_x.plot(mu_ring, -ring_radius, color='gray', zorder=1)
+        ax_y.plot(mu_ring, ring_radius, color='gray', zorder=1)
+        ax_y.plot(mu_ring, -ring_radius, color='gray', zorder=1)
         
         # --- Soluzioni Approssimate PCE ---
         valid_branches = [b for b in self.solution if b]
@@ -297,26 +308,24 @@ class SphericalSystem():
                 b_color = colors[i]
                 label = rf'$N={{{deg}}}$ Branch {i}' 
                 
-                ax[0].plot(mu_grid, approx[0], color=b_color, zorder=5, linestyle='--',
+                ax_x.plot(mu_grid, approx[0], color=b_color, zorder=5, linestyle='--',
                     marker='o', markersize=5, markevery=40, label=label if j==0 else None)
-                ax[1].plot(mu_grid, approx[1], color=b_color, zorder=5, linestyle='--',
+                ax_y.plot(mu_grid, approx[1], color=b_color, zorder=5, linestyle='--',
                     marker='o', markersize=5, markevery=40)
 
-        for i in range(2):
-            ax[i].grid(True, alpha=0.3)
-            ax[i].set_xlim([np.min(mu_grid), np.max(mu_grid)])
-            ax[i].xaxis.set_major_locator(MaxNLocator(nbins=5))
-            ax[i].yaxis.set_major_locator(MaxNLocator(nbins=5))
+        for ax in [ax_x, ax_y]:
+            ax.grid(True, alpha=0.3)
+            ax.set_xlim([np.min(mu_grid), np.max(mu_grid)])
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=5))
+            ax.yaxis.set_major_locator(MaxNLocator(nbins=5))
             
-        # handles, labels = ax[0].get_legend_handles_labels()
-        # by_label = dict(zip(labels, handles))
-        # if len(by_label) < 15:
-        #     ax[0].legend(by_label.values(), by_label.keys(), loc='upper left', borderpad=0.2, labelspacing=0.2, handlelength=1.5)
-            
-        fig.tight_layout()
-        fig.savefig(f"plots/SphericalSystem_2d_xy_rho_N_{degree_pc}_rho_{self.mu}_N_init_{len(valid_branches)}.pdf", bbox_inches='tight')
+        fig_x.tight_layout()
+        fig_y.tight_layout()
+        
+        fig_x.savefig(f"plots/SphericalSystemContinuation_2d_x_rho_N_{degree_pc}_rho_{self.mu}_N_init_{len(valid_branches)}.pdf", bbox_inches='tight')
+        fig_y.savefig(f"plots/SphericalSystemContinuation_2d_y_rho_N_{degree_pc}_rho_{self.mu}_N_init_{len(valid_branches)}.pdf", bbox_inches='tight')
+        
         plt.show()
-        plt.close()
 
     def plot_3d_bifurcation(self):
         """Plot 3D universale per le soluzioni unificate."""
@@ -379,7 +388,7 @@ class SphericalSystem():
         ax.zaxis.set_major_locator(MaxNLocator(nbins=5))
         ax.tick_params(axis='x', pad=-3)
         ax.tick_params(axis='y', pad=-1)
-        ax.tick_params(axis='z')
+        ax.tick_params(axis='z', pad=8)
         
         # handles, labels = ax.get_legend_handles_labels()
         # by_label = dict(zip(labels, handles))
@@ -392,17 +401,21 @@ class SphericalSystem():
         else:
             ax.dist = 11
             
-        fig.savefig(f"plots/SphericalSystem_3d_xy_rho_N_{degree_pc}_rho_{self.mu}_N_init_{len(valid_branches)}.pdf", bbox_inches='tight', pad_inches=0.1)
+        fig.savefig(f"plots/SphericalSystemContinuation_3d_xy_rho_N_{degree_pc}_rho_{self.mu}_N_init_{len(valid_branches)}.pdf", bbox_inches='tight', pad_inches=0.1)
         plt.show()
-        plt.close()
 
 if __name__ == "__main__":
     degree_pc = 10
     mu_values=[cp.Uniform(-1, 1), cp.Uniform(0, 1), cp.Uniform(-0.5, 0.5), cp.Uniform(-2, 2)]
-    mu_values=[cp.Uniform(1, 2)]
-    # mu_values=[cp.Uniform(-2, 2)]
+    std=[1, 0.5, 0.5, 2]
+    mu_values=[cp.Uniform(-0.1, 0.1), cp.Uniform(-0.3, 0.3), cp.Uniform(-0.5, 0.5), cp.Uniform(-1, 1)]
+    std=[0.1, 0.3, 0.5, 1]
+    n_branch=[20, 20, 3, 3]
+    mu_values=[cp.Uniform(-1, 1)]
+    std=[0.8]
+    n_branch=[3]
 
-    for val in mu_values:
+    for val, s, n in zip(mu_values,std, n_branch):
         model = SphericalSystem(
             mu=val, 
             seed_rv=cp.J(cp.Uniform(-np.sqrt(3), np.sqrt(3))),
@@ -415,14 +428,14 @@ if __name__ == "__main__":
         if RUN_CONTINUATION:
             model.continuation(
                 degree_pc=degree_pc, 
-                n_branch=20,
-                start_std=0.1/np.sqrt(3)
+                n_branch=n,
+                start_std=s/np.sqrt(3)
             )
             
         if RUN_RANDOM_SEARCH:
             model.run_random_searches(
                 degree_pc=degree_pc, 
-                n_init=1,
+                n_init=10,
                 max_attempts=300
             )
         
