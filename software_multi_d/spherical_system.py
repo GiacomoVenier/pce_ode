@@ -11,7 +11,7 @@ np.random.seed(42)
 
 # Nuove impostazioni grafiche standardizzate
 plt.rcParams.update({
-    "font.size": 13,
+    "font.size": 10,
     "text.usetex": True,
     "text.latex.preamble": r"\usepackage{lmodern}",
     "font.family": "serif",
@@ -382,6 +382,25 @@ class SphericalSystem():
                         linestyle='--', marker='o', markersize=5, markevery=40, label=label if j==0 else None)
 
         ax.view_init(elev=17, azim=-110)
+        
+        x_lim = ax.get_xlim3d()
+        y_lim = ax.get_ylim3d()
+        z_lim = ax.get_zlim3d()
+
+        # 2. Calcola l'escursione massima tra i tre assi (il semilato del cubo)
+        max_range = np.array([x_lim[1]-x_lim[0], y_lim[1]-y_lim[0]]).max() / 2.0
+
+        # 3. Trova il centro esatto dei dati
+        mid_x = (x_lim[1]+x_lim[0]) * 0.5
+        mid_y = (y_lim[1]+y_lim[0]) * 0.5
+
+        # 4. Impone a tutti gli assi lo stesso identico raggio d'azione
+        ax.set_xlim3d([mid_x - max_range, mid_x + max_range])
+        ax.set_ylim3d([mid_y - max_range, mid_y + max_range])
+        
+        # 5. Forza la scatola prospettica a essere un cubo perfetto
+        if hasattr(ax, 'set_box_aspect'):
+            ax.set_box_aspect((1, 1, 1), zoom=0.90)
         
         ax.xaxis.set_major_locator(MaxNLocator(nbins=5))
         ax.yaxis.set_major_locator(MaxNLocator(nbins=5))
